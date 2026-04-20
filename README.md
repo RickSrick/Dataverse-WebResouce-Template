@@ -49,7 +49,7 @@ It is important to maintain this naming convention to ensure that the JS and CSS
 I have developed a small, straightforward plugin that generates a solution ZIP file ready to be uploaded to Dataverse.
 To use it, simply run:	
 ```bash
-npm run build
+npm run export
 ```
 The plugin's source code is located in `SolutionCreator.ts`, and you can customize its settings in `rsbuild.config.ts`.
 
