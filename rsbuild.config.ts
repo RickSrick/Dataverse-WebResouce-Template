@@ -1,9 +1,17 @@
-import { defineConfig } from '@rsbuild/core';
+import { SolutionCreator } from './SolutionCreator';
 import { pluginReact } from '@rsbuild/plugin-react';
+import { defineConfig } from '@rsbuild/core';
 
 // Docs: https://rsbuild.rs/config/
 export default defineConfig({
-  plugins: [pluginReact()],
+  plugins: [pluginReact(), SolutionCreator({
+    prefix: "con",
+    solutionName: "Solution",
+    resourceName: "ResourceTemplate",
+    publisherName: "Contoso",
+    publisherDisplay: "Contoso SRL",
+    version: "1.0.0.0"
+  })],
   dev: {
     lazyCompilation: true,
   },

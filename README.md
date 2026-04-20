@@ -45,6 +45,15 @@ Now let’s proceed to upload the files into Power Apps. You will need to create
 
 It is important to maintain this naming convention to ensure that the JS and CSS files are automatically linked. (If needed, you can freely modify the index.html file as you prefer)
 
+## Export
+I have developed a small, straightforward plugin that generates a solution ZIP file ready to be uploaded to Dataverse.
+To use it, simply run:	
+```bash
+npm run build
+```
+The plugin's source code is located in `SolutionCreator.ts`, and you can customize its settings in `rsbuild.config.ts`.
+
+
 ## User Notes
 Inside the index.html file, there is a link with an href to `"../ClientGlobalContext.js.aspx"`. This file will allow
 you to have the Xrm object within the window of your web resource. 
