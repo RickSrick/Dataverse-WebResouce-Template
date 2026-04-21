@@ -1,7 +1,7 @@
+import { readdirSync, readFileSync, type Dirent } from 'node:fs';
 import type { RsbuildPlugin } from '@rsbuild/core';
 import { v5 as uuidv5 } from "uuid";
 import AdmZip from 'adm-zip';
-import fs from 'node:fs';
 import path from 'path';
 
 /**
@@ -16,72 +16,73 @@ import path from 'path';
   *                 - uuid: to generate GUIDs for the web resources.
   *                 - adm-zip: to create the final solution ZIP file.
   */
- 
+
 const MY_NAMESPACE = "1b671a64-40d5-491e-99b0-da01ff1f3341";
 export type SolutionCreatorOptions = {
     prefix: string;
     solutionName: string
-    resourceName?: string
+    resourceName: string
     publisherName: string,
     publisherDisplay: string,
     version: string
 };
 type WebResourceToUpload = {
     filePath: string,
-    resType: number,
+    resType: ResourceType,
     logicalName: string,
     displayName: string,
     guid: string,
     sanitizeFile: string
 }
+type ResourceType = { typeid: number, color: string }
 // https://learn.microsoft.com/en-us/power-apps/developer/model-driven-apps/web-resources
-const ResourceTypes: Record<string, [number, string]> = {
-    ".html": [1, "\x1B[38;5;41m"],
-    ".htm":  [1, "\x1B[38;5;41m"],
-    ".css":  [2, "\x1B[38;5;185m"],
-    ".js":   [3, "\x1B[38;5;38m"],
-    ".xml":  [4, "\x1B[38;5;10m"],
-    ".png":  [5, "\x1B[38;5;218m"],
-    ".jpg":  [6, "\x1B[38;5;219m"],
-    ".gif":  [7, "\x1B[38;5;217m"],
-    ".xap":  [8, "\x1B[38;5;100m"],
-    ".xsl":  [9, "\x1B[38;5;340m"],
-    ".xslt": [9, "\x1B[38;5;340m"],
-    ".ico":  [10, "\x1B[38;5;215m"],
-    ".svg":  [11, "\x1B[38;5;214m"],
-    ".resx": [12, "\x1B[38;5;250m"]
+const ResourceTypes: Record<string, ResourceType> = {
+    ".html": { typeid: 1, color: "\x1B[38;5;41m" },
+    ".htm": { typeid: 1, color: "\x1B[38;5;41m" },
+    ".css": { typeid: 2, color: "\x1B[38;5;185m" },
+    ".js": { typeid: 3, color: "\x1B[38;5;38m" },
+    ".xml": { typeid: 4, color: "\x1B[38;5;10m" },
+    ".png": { typeid: 5, color: "\x1B[38;5;218m" },
+    ".jpg": { typeid: 6, color: "\x1B[38;5;219m" },
+    ".gif": { typeid: 7, color: "\x1B[38;5;217m" },
+    ".xap": { typeid: 8, color: "\x1B[38;5;100m" },
+    ".xsl": { typeid: 9, color: "\x1B[38;5;340m" },
+    ".xslt": { typeid: 9, color: "\x1B[38;5;340m" },
+    ".ico": { typeid: 10, color: "\x1B[38;5;215m" },
+    ".svg": { typeid: 11, color: "\x1B[38;5;214m" },
+    ".resx": { typeid: 12, color: "\x1B[38;5;250m" }
 }
 
 export const SolutionCreator = (options: SolutionCreatorOptions): RsbuildPlugin => ({
     name: 'solution-creator',
     setup(api) {
-        let containsflag: boolean = false;
+        let containsFlag: boolean = false;
 
         api.onBeforeBuild(() => {
-            containsflag = process.argv.includes('--create-sol');
+            containsFlag = process.argv.includes('--create-sol');
         });
-
         api.onAfterBuild(() => {
-            if (!containsflag) { return; }
+            if (!containsFlag) { return; }
+            sanitizeOptions(options);
             const config = api.getNormalizedConfig();
             const distRoot = config.output.distPath.root;
-            BuildZipFileDirectly(distRoot, options);
+            buildZipFileDirectly(distRoot, options);
         });
     },
 });
-const BuildZipFileDirectly = (dirPath: string, options: SolutionCreatorOptions): void => {
-    const zip: AdmZip = new AdmZip();
+const buildZipFileDirectly = (dirPath: string, options: SolutionCreatorOptions): void => {
+    const zip = new AdmZip();
     zip.addFile("[Content_Types].xml", Buffer.from(contentXml, "utf8"));
 
-    const files: WebResourceToUpload[] = fs.readdirSync(dirPath, { recursive: true, withFileTypes: true })
-        .reduce((result: WebResourceToUpload[], file: fs.Dirent): WebResourceToUpload[] => {
+    const files: WebResourceToUpload[] = readdirSync(dirPath, { recursive: true, withFileTypes: true })
+        .reduce((result: WebResourceToUpload[], file: Dirent): WebResourceToUpload[] => {
             const resType = ResourceTypes[path.extname(file.name)];
             if (!file.isDirectory() && resType !== null && resType !== undefined) {
                 const strpath: string = file.parentPath.replace(/[\\]/g, "/") + "/" + file.name;
                 const strlogical: string = options.prefix + "_" + options.resourceName + strpath.replace(dirPath, "")
                 result.push({
                     filePath: strpath,
-                    resType: ResourceTypes[path.extname(file.name)][0],
+                    resType: ResourceTypes[path.extname(file.name)],
                     logicalName: strlogical,
                     displayName: strlogical,
                     guid: uuidv5(strlogical, MY_NAMESPACE),
@@ -95,10 +96,32 @@ const BuildZipFileDirectly = (dirPath: string, options: SolutionCreatorOptions):
     zip.addFile("customizations.xml", Buffer.from(buildCustomizationXml(files)));
 
     files.forEach((file: WebResourceToUpload) => {
-        zip.addFile("WebResources/" + file.sanitizeFile, Buffer.from(fs.readFileSync(file.filePath, 'utf8'), "utf8"));
+        zip.addFile("WebResources/" + file.sanitizeFile, readFileSync(file.filePath));
     });
     zip.writeZip(options.solutionName + ".zip");
     logExport(files, options);
+}
+function sanitizeOptions(options: SolutionCreatorOptions) {
+    if (!options.prefix.match(/^(?!mscrm)[a-zA-Z][a-zA-Z0-9]{1,7}$/)) {
+        throw new Error("The prefix must be between 2 and 8 characters long, may consist only of alphanumeric characters, must begin with a letter, and cannot begin with “mscrm”.");
+    }
+    options.publisherDisplay = sanitizeString(options.publisherDisplay);
+    options.publisherName = sanitizeString(options.publisherName);
+    options.resourceName = sanitizeString(options.resourceName);
+    options.solutionName = sanitizeString(options.solutionName);
+
+    if (!options.version.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+        throw new Error("The version must be in the format x.x.x.x")
+    }
+}
+function sanitizeString(input: string): string {
+    let sanitized = input;
+    sanitized = sanitized.replace(/&/g, "&amp;");
+    sanitized = sanitized.replace(/</g, "&lt;");
+    sanitized = sanitized.replace(/>/g, "&gt;");
+    sanitized = sanitized.replace(/\"/g, "&quot;");
+    sanitized = sanitized.replace(/'/g, "&apos;");
+    return sanitized;
 }
 function logExport(files: WebResourceToUpload[], options: SolutionCreatorOptions) {
     console.log("\nSolution \x1B[1;36m" + options.solutionName + ".zip\x1B[0m created!\n")
@@ -110,9 +133,8 @@ function logExport(files: WebResourceToUpload[], options: SolutionCreatorOptions
 
     console.log("\x1B[34mFile (web)" + " ".repeat(longestPath - "File (web)".length) + "Logical Name\x1B[0m");
     files.forEach(file => {
-        const color = ResourceTypes[path.extname(file.filePath)][1];
         const filepathdivided = file.filePath.split("/");
-        console.log("\x1B[38;5;239m" + filepathdivided.splice(0, filepathdivided.length - 1).join("/") + "/" + color + filepathdivided[filepathdivided.length - 1] + "\x1B[0m" + " ".repeat(longestPath - file.filePath.length) + file.logicalName);
+        console.log("\x1B[38;5;239m" + filepathdivided.splice(0, filepathdivided.length - 1).join("/") + "/" + file.resType.color + filepathdivided[filepathdivided.length - 1] + "\x1B[0m" + " ".repeat(longestPath - file.filePath.length) + file.logicalName);
     });
 }
 
@@ -208,7 +230,7 @@ ${files.map((file: WebResourceToUpload) => {
 <WebResourceId>{${file.guid}}</WebResourceId>
 <Name>${file.logicalName}</Name>
 <DisplayName>${file.displayName}</DisplayName>
-<WebResourceType>${file.resType}</WebResourceType>
+<WebResourceType>${file.resType.typeid}</WebResourceType>
 <IsEnabledForMobileClient>0</IsEnabledForMobileClient>
 <IsAvailableForMobileOffline>0</IsAvailableForMobileOffline>
 <IsCustomizable>1</IsCustomizable>
@@ -220,7 +242,6 @@ ${files.map((file: WebResourceToUpload) => {
 </WebResources>
 <Languages/>
 </ImportExportXml>`;
-
 }
 const contentXml = `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="xml" ContentType="application/xml"/>
