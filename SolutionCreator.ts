@@ -1,5 +1,6 @@
-import { readdirSync, readFileSync, type Dirent } from 'node:fs';
+import { readdir, readFile } from 'node:fs/promises';
 import type { RsbuildPlugin } from '@rsbuild/core';
+import { type Dirent } from 'node:fs';
 import { v5 as uuidv5 } from "uuid";
 import AdmZip from 'adm-zip';
 import path from 'path';
@@ -18,6 +19,8 @@ import path from 'path';
   */
 
 const MY_NAMESPACE = "1b671a64-40d5-491e-99b0-da01ff1f3341";
+const TAB_SIZE = 3;
+
 export type SolutionCreatorOptions = {
     prefix: string;
     solutionName: string
@@ -46,8 +49,8 @@ const ResourceTypes: Record<string, ResourceType> = {
     ".jpg": { typeid: 6, color: "\x1B[38;5;219m" },
     ".gif": { typeid: 7, color: "\x1B[38;5;217m" },
     ".xap": { typeid: 8, color: "\x1B[38;5;100m" },
-    ".xsl": { typeid: 9, color: "\x1B[38;5;340m" },
-    ".xslt": { typeid: 9, color: "\x1B[38;5;340m" },
+    ".xsl": { typeid: 9, color: "\x1B[38;5;240m" },
+    ".xslt": { typeid: 9, color: "\x1B[38;5;240m" },
     ".ico": { typeid: 10, color: "\x1B[38;5;215m" },
     ".svg": { typeid: 11, color: "\x1B[38;5;214m" },
     ".resx": { typeid: 12, color: "\x1B[38;5;250m" }
@@ -61,47 +64,66 @@ export const SolutionCreator = (options: SolutionCreatorOptions): RsbuildPlugin 
         api.onBeforeBuild(() => {
             containsFlag = process.argv.includes('--create-sol');
         });
-        api.onAfterBuild(() => {
+        api.onAfterBuild(async () => {
             if (!containsFlag) { return; }
             sanitizeOptions(options);
             const config = api.getNormalizedConfig();
             const distRoot = config.output.distPath.root;
-            buildZipFileDirectly(distRoot, options);
+            await buildZipFileDirectly(distRoot, options);
         });
     },
 });
-const buildZipFileDirectly = (dirPath: string, options: SolutionCreatorOptions): void => {
-    const zip = new AdmZip();
-    zip.addFile("[Content_Types].xml", Buffer.from(contentXml, "utf8"));
+const buildZipFileDirectly = async (dirPath: string, options: SolutionCreatorOptions): Promise<void> => {
+    try {
+        const startTime = performance.now();
+        const zip = new AdmZip();
+        const entries = await readdir(dirPath, { recursive: true, withFileTypes: true });
+        const files: WebResourceToUpload[] = entries
+            .reduce((result: WebResourceToUpload[], file: Dirent): WebResourceToUpload[] => {
+                const resType = ResourceTypes[path.extname(file.name)];
+                if (!file.isDirectory() && resType !== null && resType !== undefined) {
+                    const strpath: string = file.parentPath.replace(/[\\]/g, "/") + "/" + file.name;
+                    const strlogical: string = options.prefix + "_" + options.resourceName + strpath.replace(dirPath, "");
+                    result.push({
+                        filePath: strpath,
+                        resType: ResourceTypes[path.extname(file.name)],
+                        logicalName: strlogical,
+                        displayName: strlogical,
+                        guid: uuidv5(strlogical, MY_NAMESPACE),
+                        sanitizeFile: "WebResource_" + strlogical.replace(/[\\/*?:"<>|]/g, '')
+                    })
+                }
+                return result;
+            }, []);
 
-    const files: WebResourceToUpload[] = readdirSync(dirPath, { recursive: true, withFileTypes: true })
-        .reduce((result: WebResourceToUpload[], file: Dirent): WebResourceToUpload[] => {
-            const resType = ResourceTypes[path.extname(file.name)];
-            if (!file.isDirectory() && resType !== null && resType !== undefined) {
-                const strpath: string = file.parentPath.replace(/[\\]/g, "/") + "/" + file.name;
-                const strlogical: string = options.prefix + "_" + options.resourceName + strpath.replace(dirPath, "")
-                result.push({
-                    filePath: strpath,
-                    resType: ResourceTypes[path.extname(file.name)],
-                    logicalName: strlogical,
-                    displayName: strlogical,
-                    guid: uuidv5(strlogical, MY_NAMESPACE),
-                    sanitizeFile: "WebResource_" + strlogical.replace(/[\\/*?:"<>|]/g, '')
-                })
-            }
-            return result;
-        }, []);
+        if (files.length === 0) {
+            console.warn("There are no file for a solution");
+            return;
+        }
 
-    zip.addFile("solution.xml", Buffer.from(buildSolutionXml(files, options)));
-    zip.addFile("customizations.xml", Buffer.from(buildCustomizationXml(files)));
+        zip.addFile("[Content_Types].xml", Buffer.from(contentXml, "utf8"));
+        zip.addFile("solution.xml", Buffer.from(buildSolutionXml(files, options)));
+        zip.addFile("customizations.xml", Buffer.from(buildCustomizationXml(files)));
+        const fileContents = await Promise.all(
+            files.map(async (file) => ({
+                path: "WebResources/" + file.sanitizeFile,
+                content : await readFile(file.filePath)
+            }))
+        );
+        fileContents.forEach(({ path, content }) => {
+            zip.addFile(path, content);
+        });
 
-    files.forEach((file: WebResourceToUpload) => {
-        zip.addFile("WebResources/" + file.sanitizeFile, readFileSync(file.filePath));
-    });
-    zip.writeZip(options.solutionName + ".zip");
-    logExport(files, options);
+        zip.writeZip(options.solutionName + ".zip");
+        const endTime = performance.now();
+        logExport(files, options, (endTime - startTime));
+    }
+    catch (error: unknown) {
+        if (!(error instanceof Error)) return;
+        console.error("Error during build: " + error.message);
+    }
 }
-function sanitizeOptions(options: SolutionCreatorOptions) {
+const sanitizeOptions = (options: SolutionCreatorOptions): void => {
     if (!options.prefix.match(/^(?!mscrm)[a-zA-Z][a-zA-Z0-9]{1,7}$/)) {
         throw new Error("The prefix must be between 2 and 8 characters long, may consist only of alphanumeric characters, must begin with a letter, and cannot begin with “mscrm”.");
     }
@@ -114,7 +136,7 @@ function sanitizeOptions(options: SolutionCreatorOptions) {
         throw new Error("The version must be in the format x.x.x.x")
     }
 }
-function sanitizeString(input: string): string {
+const sanitizeString = (input: string): string => {
     let sanitized = input;
     sanitized = sanitized.replace(/&/g, "&amp;");
     sanitized = sanitized.replace(/</g, "&lt;");
@@ -123,23 +145,22 @@ function sanitizeString(input: string): string {
     sanitized = sanitized.replace(/'/g, "&apos;");
     return sanitized;
 }
-function logExport(files: WebResourceToUpload[], options: SolutionCreatorOptions) {
-    console.log("\nSolution \x1B[1;36m" + options.solutionName + ".zip\x1B[0m created!\n")
-    const tabsize = 3;
+const logExport = (files: WebResourceToUpload[], options: SolutionCreatorOptions, executionms: number): void => {
+
+    console.log(`\nSolution \x1B[1;36m${options.solutionName}.zip\x1B[0m created! (in: ${(executionms / 1000).toFixed(2)} s)\n`);
     let longestPath = 0;
-
     files.forEach((file) => { if (file.filePath.length > longestPath) longestPath = file.filePath.length; })
-    longestPath += tabsize;
+    longestPath += TAB_SIZE;
 
-    console.log("\x1B[34mFile (web)" + " ".repeat(longestPath - "File (web)".length) + "Logical Name\x1B[0m");
+    console.log(`\x1B[34mFile (web)${" ".repeat(longestPath - "File (web)".length)}Logical Name\x1B[0m`);
     files.forEach(file => {
         const filepathdivided = file.filePath.split("/");
-        console.log("\x1B[38;5;239m" + filepathdivided.splice(0, filepathdivided.length - 1).join("/") + "/" + file.resType.color + filepathdivided[filepathdivided.length - 1] + "\x1B[0m" + " ".repeat(longestPath - file.filePath.length) + file.logicalName);
+        console.log(`\x1B[38;5;239m${filepathdivided.splice(0, filepathdivided.length - 1).join("/")}/${file.resType.color}${filepathdivided[filepathdivided.length - 1]}\x1B[0m${" ".repeat(longestPath - file.filePath.length)}${file.logicalName}`);
     });
 }
 
 
-function buildSolutionXml(files: WebResourceToUpload[], options: SolutionCreatorOptions): string {
+const buildSolutionXml = (files: WebResourceToUpload[], options: SolutionCreatorOptions): string => {
     return `<ImportExportXml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="9.2.24041.198" SolutionPackageVersion="9.2" languagecode="1033" generatedBy="RickBuilder">
 <SolutionManifest>
 <UniqueName>${options.solutionName}</UniqueName>
@@ -223,7 +244,7 @@ function buildSolutionXml(files: WebResourceToUpload[], options: SolutionCreator
     }).join("\n")
         }</RootComponents><MissingDependencies/></SolutionManifest></ImportExportXml>`
 }
-function buildCustomizationXml(files: WebResourceToUpload[]): string {
+const buildCustomizationXml = (files: WebResourceToUpload[]): string => {
     return `<ImportExportXml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><WebResources>
 ${files.map((file: WebResourceToUpload) => {
         return `<WebResource>
