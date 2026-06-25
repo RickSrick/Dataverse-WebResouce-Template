@@ -18,3 +18,4 @@ dist/
 # Build
 build/*
 *.zip
+.devcontainer

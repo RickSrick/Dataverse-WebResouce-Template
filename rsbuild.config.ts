@@ -1,4 +1,4 @@
-import { SolutionCreator } from './SolutionCreator';
+import { SolutionCreator } from './plugins/SolutionCreator';
 import { pluginReact } from '@rsbuild/plugin-react';
 import { defineConfig } from '@rsbuild/core';
 
