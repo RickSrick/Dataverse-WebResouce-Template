@@ -9,7 +9,7 @@ export default defineConfig({
     solutionName: "Solution",
     resourceName: "ResourceTemplate",
     publisher : {
-      publisherName: "Contoso",
+      uniqueName: "Contoso",
       publisherDisplay: "Contoso SRL",
       optionValuePrefix: 11111
     },

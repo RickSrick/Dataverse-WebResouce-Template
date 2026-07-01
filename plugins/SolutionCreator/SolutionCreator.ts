@@ -20,6 +20,11 @@ import path from 'path';
 
 const MY_NAMESPACE = "1b671a64-40d5-491e-99b0-da01ff1f3341";
 const TAB_SIZE = 3;
+const DEFAULT_PUBLISHER = {
+    uniqueName: "RickSrickRsbuild",
+    publisherDisplay: "RickSrick WEB Resource",
+    optionValuePrefix: 301002
+} as const;
 
 export type SolutionCreatorOptions = {
     prefix: string;
@@ -27,7 +32,7 @@ export type SolutionCreatorOptions = {
     resourceName: string;
     version: string;
     publisher? : {
-        publisherName: string;
+        uniqueName: string;
         publisherDisplay: string;
         optionValuePrefix: number;
     }
@@ -69,14 +74,8 @@ export const SolutionCreator = (options: SolutionCreatorOptions): RsbuildPlugin 
         });
         api.onAfterBuild(async () => {
             if (!containsFlag) { return; }
+            options.publisher ??= { ...DEFAULT_PUBLISHER };
             sanitizeOptions(options);
-            if (options.publisher == null) {
-                options.publisher = {
-                    publisherName: "RWebRes",
-                    publisherDisplay: "RickSrick WEB Resource",
-                    optionValuePrefix: 69420
-                };
-            }
             const config = api.getNormalizedConfig();
             const distRoot = config.output.distPath.root;
             await buildZipFileDirectly(distRoot, options);
@@ -146,7 +145,7 @@ const sanitizeOptions = (options: SolutionCreatorOptions): void => {
 
     if (options.publisher == null) return;
     options.publisher.publisherDisplay = sanitizeString(options.publisher.publisherDisplay);
-    options.publisher.publisherName = sanitizeString(options.publisher.publisherName);
+    options.publisher.uniqueName = sanitizeString(options.publisher.uniqueName);
 }
 const sanitizeString = (input: string): string => {
     let sanitized = input;
@@ -183,7 +182,7 @@ const buildSolutionXml = (files: WebResourceToUpload[], options: SolutionCreator
 <Version>${options.version}</Version>
 <Managed>0</Managed>
 <Publisher>
-<UniqueName>${options.publisher?.publisherName}</UniqueName>
+<UniqueName>${options.publisher?.uniqueName}</UniqueName>
 <LocalizedNames>
 <LocalizedName description="${options.publisher?.publisherDisplay}" languagecode="1033"/>
 </LocalizedNames>
