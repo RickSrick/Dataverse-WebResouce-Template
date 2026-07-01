@@ -1,4 +1,4 @@
-import { SolutionCreator } from './plugins/SolutionCreator';
+import { SolutionCreator } from './plugins/SolutionCreator/SolutionCreator';
 import { pluginReact } from '@rsbuild/plugin-react';
 import { defineConfig } from '@rsbuild/core';
 
@@ -8,8 +8,11 @@ export default defineConfig({
     prefix: "con",
     solutionName: "Solution",
     resourceName: "ResourceTemplate",
-    publisherName: "Contoso",
-    publisherDisplay: "Contoso SRL",
+    publisher : {
+      publisherName: "Contoso",
+      publisherDisplay: "Contoso SRL",
+      optionValuePrefix: 11111
+    },
     version: "1.0.0.0"
   })],
   dev: {

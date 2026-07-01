@@ -23,11 +23,14 @@ const TAB_SIZE = 3;
 
 export type SolutionCreatorOptions = {
     prefix: string;
-    solutionName: string
-    resourceName: string
-    publisherName: string,
-    publisherDisplay: string,
-    version: string
+    solutionName: string;
+    resourceName: string;
+    version: string;
+    publisher? : {
+        publisherName: string;
+        publisherDisplay: string;
+        optionValuePrefix: number;
+    }
 };
 type WebResourceToUpload = {
     filePath: string,
@@ -67,6 +70,13 @@ export const SolutionCreator = (options: SolutionCreatorOptions): RsbuildPlugin 
         api.onAfterBuild(async () => {
             if (!containsFlag) { return; }
             sanitizeOptions(options);
+            if (options.publisher == null) {
+                options.publisher = {
+                    publisherName: "RWebRes",
+                    publisherDisplay: "RickSrick WEB Resource",
+                    optionValuePrefix: 69420
+                };
+            }
             const config = api.getNormalizedConfig();
             const distRoot = config.output.distPath.root;
             await buildZipFileDirectly(distRoot, options);
@@ -127,14 +137,16 @@ const sanitizeOptions = (options: SolutionCreatorOptions): void => {
     if (!options.prefix.match(/^(?!mscrm)[a-zA-Z][a-zA-Z0-9]{1,7}$/)) {
         throw new Error("The prefix must be between 2 and 8 characters long, may consist only of alphanumeric characters, must begin with a letter, and cannot begin with “mscrm”.");
     }
-    options.publisherDisplay = sanitizeString(options.publisherDisplay);
-    options.publisherName = sanitizeString(options.publisherName);
-    options.resourceName = sanitizeString(options.resourceName);
+    
     options.solutionName = sanitizeString(options.solutionName);
-
+    options.resourceName = sanitizeString(options.resourceName);
     if (!options.version.match(/^\d+\.\d+\.\d+\.\d+$/)) {
         throw new Error("The version must be in the format x.x.x.x")
     }
+
+    if (options.publisher == null) return;
+    options.publisher.publisherDisplay = sanitizeString(options.publisher.publisherDisplay);
+    options.publisher.publisherName = sanitizeString(options.publisher.publisherName);
 }
 const sanitizeString = (input: string): string => {
     let sanitized = input;
@@ -171,15 +183,15 @@ const buildSolutionXml = (files: WebResourceToUpload[], options: SolutionCreator
 <Version>${options.version}</Version>
 <Managed>0</Managed>
 <Publisher>
-<UniqueName>${options.publisherName}</UniqueName>
+<UniqueName>${options.publisher?.publisherName}</UniqueName>
 <LocalizedNames>
-<LocalizedName description="${options.publisherDisplay}" languagecode="1033"/>
+<LocalizedName description="${options.publisher?.publisherDisplay}" languagecode="1033"/>
 </LocalizedNames>
 <Descriptions/>
 <EMailAddress xsi:nil="true"/>
 <SupportingWebsiteUrl xsi:nil="true"/>
 <CustomizationPrefix>${options.prefix}</CustomizationPrefix>
-<CustomizationOptionValuePrefix>54595</CustomizationOptionValuePrefix>
+<CustomizationOptionValuePrefix>${options.publisher?.optionValuePrefix}</CustomizationOptionValuePrefix>
 <Addresses>
 <Address>
 <AddressNumber>1</AddressNumber>
