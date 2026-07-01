@@ -69,8 +69,12 @@ addFormContextToWebResource : async function (executionContext) {
 ```
 This way, _formContext will be available within the web resource by calling window.parent._formContext.
 
-### (NEW) Use docker
-
+### (NEW) Use Docker
+Now we support docker. run:
+```bash
+docker build -t {image_name} . 
+docker run --rm -p 3000:3000 {image_name}
+```
 
 ## Useful Links
 Here are some useful links to help with development:
