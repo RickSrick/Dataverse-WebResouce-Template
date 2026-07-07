@@ -51,13 +51,8 @@ To use it, simply run:
 ```bash
 npm run export
 ```
-The plugin's source code is located in `SolutionCreator.ts`, and you can customize its settings in `rsbuild.config.ts`.
+The plugin's source code is located in `plugins/SolutionCreator/SolutionCreator.ts`, and you can customize its settings in `rsbuild.config.ts`.
 
-
-## User Notes
-Inside the index.html file, there is a link with an href to `"../ClientGlobalContext.js.aspx"`. This file will allow
-you to have the Xrm object within the window of your web resource. 
-The Xrm object **DOES NOT CONTAIN** the formContext.
 
 ### How do I pass the formContext to the web resource?
 The only way I know of is to write code similar to the Form's onLoad event:

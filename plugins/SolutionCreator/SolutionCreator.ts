@@ -23,7 +23,7 @@ const TAB_SIZE = 3;
 const DEFAULT_PUBLISHER = {
     uniqueName: "RickSrickRsbuild",
     publisherDisplay: "RickSrick WEB Resource",
-    optionValuePrefix: 301002
+    optionValuePrefix: 30102
 } as const;
 
 export type SolutionCreatorOptions = {
