@@ -45,10 +45,14 @@ Now let’s proceed to upload the files into Power Apps. You will need to create
 
 It is important to maintain this naming convention to ensure that the JS and CSS files are automatically linked. (If needed, you can freely modify the index.html file as you prefer)
 
-## User Notes
-Inside the index.html file, there is a link with an href to `"../ClientGlobalContext.js.aspx"`. This file will allow
-you to have the Xrm object within the window of your web resource. 
-The Xrm object **DOES NOT CONTAIN** the formContext.
+## Export
+I have developed a small, straightforward plugin that generates a solution ZIP file ready to be uploaded to Dataverse.
+To use it, simply run:	
+```bash
+npm run export
+```
+The plugin's source code is located in `plugins/SolutionCreator/SolutionCreator.ts`, and you can customize its settings in `rsbuild.config.ts`.
+
 
 ### How do I pass the formContext to the web resource?
 The only way I know of is to write code similar to the Form's onLoad event:
@@ -59,6 +63,13 @@ addFormContextToWebResource : async function (executionContext) {
 }
 ```
 This way, _formContext will be available within the web resource by calling window.parent._formContext.
+
+### (NEW) Use Docker
+Now we support docker. run:
+```bash
+docker build -t {image_name} . 
+docker run --rm -p 3000:3000 {image_name}
+```
 
 ## Useful Links
 Here are some useful links to help with development:

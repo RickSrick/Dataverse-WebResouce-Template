@@ -6,16 +6,21 @@
   "scripts": {
     "build": "rsbuild build",
     "dev": "rsbuild dev --open",
-    "preview": "rsbuild preview"
+    "preview": "rsbuild preview",
+    "export": "rsbuild build -- --create-sol"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.73.0",
+    "adm-zip": "^0.5.17",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@rsbuild/core": "^1.7.1",
     "@rsbuild/plugin-react": "^1.4.2",
+    "@types/adm-zip": "^0.5.8",
+    "@types/node": "^25.6.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "typescript": "^5.9.3"
