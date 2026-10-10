@@ -17,12 +17,14 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
-    "@rsbuild/core": "^1.7.1",
-    "@rsbuild/plugin-react": "^1.4.2",
+    "@rsbuild/core": "^2.2.12",
+    "@rsbuild/plugin-react": "^2.1.1",
+    "@rsbuild/plugin-tailwindcss": "^2.0.3",
     "@types/adm-zip": "^0.5.8",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3"
   }
 }

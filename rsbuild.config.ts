@@ -1,10 +1,11 @@
 import { SolutionCreator } from './plugins/SolutionCreator/SolutionCreator';
+import { pluginTailwindcss } from '@rsbuild/plugin-tailwindcss';
 import { pluginReact } from '@rsbuild/plugin-react';
 import { defineConfig } from '@rsbuild/core';
 
 // Docs: https://rsbuild.rs/config/
 export default defineConfig({
-  plugins: [pluginReact(), SolutionCreator({
+  plugins: [pluginReact(), pluginTailwindcss(), SolutionCreator({
     prefix: "con",
     solutionName: "Solution",
     resourceName: "ResourceTemplate",
